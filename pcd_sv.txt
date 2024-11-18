@@ -1,0 +1,546 @@
+6)implementation of code optimizer
+
+#include<stdio.h>
+#include<string.h>
+
+struct op {
+    char l;
+    char r[20];
+} op[10], pr[10];
+
+void main() {
+    int a, i, k, j, n, z = 0, m, q;
+    char *p, *l, *tem, temp, t;
+    char nu[] = "\0";
+    
+    printf("\nEnter the number of values: ");
+    scanf("%d", &n);
+    
+    for(i = 0; i < n; i++) {
+        printf("\nLeft: ");
+        scanf(" %c", &op[i].l);  // Notice space before %c to handle newline issue
+        printf("Right: ");
+        scanf("%s", op[i].r);
+    }
+    
+    printf("\nIntermediate code\n");
+    for(i = 0; i < n; i++)
+        printf("%c = %s\n", op[i].l, op[i].r);
+    
+    for(i = 0; i < n; i++) {
+        temp = op[i].l;
+        p = NULL;
+        for(j = 0; j < n; j++) {
+            p = strchr(op[j].r, temp);
+            if(p) {
+                pr[z].l = op[i].l;
+                strcpy(pr[z].r, op[i].r);
+                z++;
+                break;
+            }
+        }
+    }
+    
+    printf("\nAfter dead code elimination\n");
+    for(k = 0; k < z; k++)
+        printf("%c = %s\n", pr[k].l, pr[k].r);
+    
+    for(m = 0; m < z; m++) {
+        tem = pr[m].r;
+        for(j = m + 1; j < z; j++) {
+            p = strstr(tem, pr[j].r);
+            if(p) {
+                pr[j].l = pr[m].l;
+                for(i = 0; i < z; i++) {
+                    l = strchr(pr[i].r, pr[j].l);
+                    if(l) {
+                        a = l - pr[i].r;
+                        pr[i].r[a] = pr[m].l;
+                    }
+                }
+            }
+        }
+    }
+    
+    printf("\nEliminate common expression\n");
+    for(i = 0; i < z; i++)
+        printf("%c = %s\n", pr[i].l, pr[i].r);
+    
+    for(i = 0; i < z; i++) {
+        for(j = i + 1; j < z; j++) {
+            q = strcmp(pr[i].r, pr[j].r);
+            if((pr[i].l == pr[j].l) && !q) {
+                pr[i].l = '\0';
+                strcpy(pr[i].r, nu);
+            }
+        }
+    }
+    
+    printf("\nOptimized code\n");
+    for(i = 0; i < z; i++) {
+        if(pr[i].l != '\0')
+            printf("%c = %s\n", pr[i].l, pr[i].r);
+    }
+}
+
+Input:
+no of values : 5
+Left A
+Right 10
+
+Left b
+Right 20
+
+Left c
+Right a+b
+
+Left d
+Right a+b
+
+left e
+Right c+d
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+4)implementation of back end of compiler
+
+
+
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+
+int reg_count = 1; // To keep track of registers (R1, R2, etc.)
+
+// Function to generate instructions
+void generate_code(char op, char operand1[], char operand2[]) {
+    if (op == '*') {
+        printf("MULF %s, %s\n", operand1, operand2);
+    } else if (op == '/') {
+        printf("DIVF %s, %s\n", operand1, operand2);
+    } else if (op == '+') {
+        printf("ADDF %s, %s\n", operand1, operand2);
+    } else if (op == '-') {
+        printf("SUBF %s, %s\n", operand1, operand2);
+    }
+}
+
+int main() {
+    char a[50], b[50], id[50], op;
+    int i = 0, j = 0, len = 0, reg1, reg2, count;
+
+    printf("Enter the expression (e.g., id1+id2*id3): ");
+    scanf("%s", a);
+    strcpy(b, a);
+    len = strlen(a);
+
+    // Step 1: MOVF id to register (MOVF id, R1)
+    for (i = 0; i < len; i++) {
+        if (isalpha(b[i])) {
+            printf("MOVF id%d, R%d\n", b[i] - 'a' + 1, reg_count++);
+        }
+    }
+
+    // Step 2: Handle operations (*, /, +, -)
+    reg1 = 1; // Track the registers being used
+    for (i = 0; i < len; i++) {
+        if (b[i] == '*' || b[i] == '/' || b[i] == '+' || b[i] == '-') {
+            op = b[i];
+            reg2 = reg1 + 1;
+            generate_code(op, "R2", "R3");  // Use R2, R3 for demonstration
+            reg1++; // Move to the next register
+        }
+    }
+
+    return 0;
+}
+==>input: id1=id2+id3*id4
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+)implementation of front end of compiler
+
+
+#include<stdio.h>
+#include<ctype.h>
+#include<string.h>
+
+int ag = 0, z = 1;
+
+void main() {
+    char a[50], id[50], b[50], op[50];
+    char mov[] = "MOVF", mul[] = "MULF", div[] = "DIVF", add[] = "ADDF", sub[] = "SUBF";
+    int ti = 0;
+    int i = 0, j = 0, k = 0, len = 0, s = 0, e = 0, r = 1, count;
+    FILE *fp;
+    
+    fp = fopen("out.txt", "w");
+    
+    printf("\nEnter the code: ");
+    scanf("%s", a);
+    strcpy(b, a);
+    len = strlen(a);
+    
+    // Process for '*' or '/' operators
+    for (i = 0; i < strlen(b); i++) {
+        if (b[i] == '*' || b[i] == '/') {
+            for (j = i - 1; b[j] != '-' && b[j] != '+' && b[j] != '*' && b[j] != '/' && b[j] != '='; j--);
+            k = j + 1;
+            count = 0;
+            printf("\nt%d = ", ti++);
+            for (j = j + 1; count < 2 && b[j] != '\0'; j++) {
+                if (b[j + 1] == '+' || b[j + 1] == '-' || b[j + 1] == '*' || b[j + 1] == '/')
+                    count++;
+                printf("%c", b[j]);
+            }
+            b[k++] = 't';
+            b[k++] = ti - 1 + 48;
+            for (j = j, k = k; k < strlen(b); k++, j++)
+                b[k] = b[j];
+            i = 0;
+        }
+    }
+    
+    // Process for '+' or '-' operators
+    for (i = 0; i < strlen(b); i++) {
+        if (b[i] == '+' || b[i] == '-') {
+            for (j = i - 1; b[j] != '-' && b[j] != '+' && b[j] != '='; j--);
+            k = j + 1;
+            count = 0;
+            printf("\nt%d = ", ti++);
+            for (j = j + 1; count < 2 && b[j] != '\0'; j++) {
+                if (b[j + 1] == '+' || b[j + 1] == '-')
+                    count++;
+                printf("%c", b[j]);
+            }
+            b[k++] = 't';
+            b[k++] = ti - 1 + 48;
+            for (j = j, k = k; k < strlen(b); k++, j++)
+                b[k] = b[j];
+        }
+    }
+    
+    printf("\n%s", b);
+}
+
+input:
+d=(a-b)+(a-c)+b*c
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+2.symbol table
+
+#include <stdio.h>
+#include <string.h>
+
+struct symtab {
+    int lineno;
+    char var[25];
+    char dt[25];
+    char val[10];
+} sa[20];
+
+int main() {
+    int i = 0, max = 0, line = 0;
+    char s[25], typ[25], garbage[] = "garbage";
+    FILE *fn;
+
+    fn = fopen("input.txt", "r");
+    if (fn == NULL) {
+        printf("Error: Unable to open input file.\n");
+        return 1;
+    }
+
+    printf("\n\nSYMBOL TABLE MANAGEMENT\n\n");
+    printf("Variable\tDatatype\tLine.no.\tValue\n");
+
+    while (fscanf(fn, "%s", s) != EOF) {
+        // Check for data types
+        if (strcmp(s, "int") == 0 || strcmp(s, "float") == 0 || strcmp(s, "char") == 0) {
+            strcpy(typ, s);
+            line++;
+            while (1) {
+                i++;
+                max = i;
+                sa[i].lineno = line;
+
+                // Read variable name
+                fscanf(fn, "%s", s);
+                strcpy(sa[i].var, s);
+                strcpy(sa[i].dt, typ);
+
+                // Check for value assignment
+                fscanf(fn, "%s", s);
+                if (strcmp(s, "=") == 0) {
+                    fscanf(fn, "%s", s);
+                    strcpy(sa[i].val, s);
+
+                    // Skip next token if it's a semicolon or comma
+                    fscanf(fn, "%s", s);
+                } else {
+                    strcpy(sa[i].val, garbage);
+                }
+
+                // Break if semicolon is found
+                if (strcmp(s, ";") == 0) {
+                    break;
+                }
+            }
+        }
+    }
+
+    // Display the symbol table
+    for (i = 1; i <= max; i++) {
+        printf("%s\t\t%s\t\t%d\t\t%s\n", sa[i].var, sa[i].dt, sa[i].lineno, sa[i].val);
+    }
+
+    fclose(fn);
+    return 0;
+}
+
+
+input.txt
+int a,b=5;
+float c;
+char d="a";
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+5.lexical analzyer
+
+#include <ctype.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_LENGTH 100
+
+bool isDelimiter(char chr) {
+    return (chr == ' ' || chr == '+' || chr == '-' || chr == '*' ||
+            chr == '/' || chr == ',' || chr == ';' || chr == '%' ||
+            chr == '>' || chr == '<' || chr == '=' || chr == '(' ||
+            chr == ')' || chr == '[' || chr == ']' || chr == '{' ||
+            chr == '}');
+}
+
+bool isOperator(char chr) {
+    return (chr == '+' || chr == '-' || chr == '*' || chr == '/' ||
+            chr == '>' || chr == '<' || chr == '=');
+}
+
+bool isValidIdentifier(char* str) {
+    return (str[0] != '0' && str[0] != '1' && str[0] != '2' &&
+            str[0] != '3' && str[0] != '4' && str[0] != '5' &&
+            str[0] != '6' && str[0] != '7' && str[0] != '8' &&
+            str[0] != '9' && !isDelimiter(str[0]));
+}
+
+bool isKeyword(char* str) {
+    const char* keywords[] = {"auto", "break", "case", "char", "const", "continue", "default", "do", 
+                              "double", "else", "enum", "extern", "float", "for", "goto", "if", 
+                              "int", "long", "register", "return", "short", "signed", "sizeof", 
+                              "static", "struct", "switch", "typedef", "union", "unsigned", "void", 
+                              "volatile", "while"};
+    for (int i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++) {
+        if (strcmp(str, keywords[i]) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool isInteger(char* str) {
+    if (str == NULL || *str == '\0') {
+        return false;
+    }
+    int i = 0;
+    while (isdigit(str[i])) {
+        i++;
+    }
+    return str[i] == '\0';
+}
+
+
+char* getSubstring(char* str, int start, int end) {
+    int length = strlen(str);
+    int subLength = end - start + 1;
+    char* subStr = (char*)malloc((subLength + 1) * sizeof(char));
+    strncpy(subStr, str + start, subLength);
+    subStr[subLength] = '\0';
+    return subStr;
+}
+
+// Lexical analyzer function to analyze the input
+int lexicalAnalyzer(char* input) {
+    int left = 0, right = 0;
+    int len = strlen(input);
+
+    while (right <= len && left <= right) {
+        if (!isDelimiter(input[right]))
+            right++;
+
+        if (isDelimiter(input[right]) && left == right) {
+            if (isOperator(input[right]))
+                printf("Token: Operator, Value: %c\n", input[right]);
+
+            right++;
+            left = right;
+        } else if ((isDelimiter(input[right]) && left != right) || (right == len && left != right)) {
+            char* subStr = getSubstring(input, left, right - 1);
+
+            if (isKeyword(subStr))
+                printf("Token: Keyword, Value: %s\n", subStr);
+            else if (isInteger(subStr))
+                printf("Token: Integer, Value: %s\n", subStr);
+            else if (isValidIdentifier(subStr) && !isDelimiter(input[right - 1]))
+                printf("Token: Identifier, Value: %s\n", subStr);
+            else if (!isValidIdentifier(subStr) && !isDelimiter(input[right - 1]))
+                printf("Token: Unidentified, Value: %s\n", subStr);
+
+            left = right;
+        }
+    }
+    return 0;
+}
+
+// Main function
+int main() {
+    char lex_input[MAX_LENGTH];
+
+    printf("Enter an expression to analyze (up to %d characters): ", MAX_LENGTH);
+    fgets(lex_input, MAX_LENGTH, stdin);
+    
+    lex_input[strcspn(lex_input, "\n")] = 0;
+
+    printf("For Expression \"%s\":\n", lex_input);
+    lexicalAnalyzer(lex_input);
+    
+    return 0;
+}
+
+-----------------------------------------------------------------------------------------------------------------------
+5,lexical analyer
+1)implementation of lexical analyzer using c
+
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+void keyword(char str[10]) {
+    // List of keywords to check against
+    char keywords[10][10] = {"int", "float", "char", "while", "do", "for", "if"};
+    int isKeyword = 0;
+
+    // Check if the provided string matches any keyword
+    for (int i = 0; i < 7; i++) {
+        if (strcmp(keywords[i], str) == 0) {
+            isKeyword = 1;
+            break;
+        }
+    }
+
+    if (isKeyword) {
+        printf("\n%s is a keyword", str);
+    } else {
+        printf("\n%s is an identifier", str);
+    }
+}
+
+int main() {
+    FILE *f1, *f2, *f3, *f4;
+    char c, str[10];
+    int num[100], tokenvalue = 0, i = 0, j = 0, k = 0;
+
+    // printf("Enter the C program code (end input with CTRL+D on a new line):\n");
+
+    f1 = fopen("input.txt", "w");
+    while ((c = getchar()) != EOF) {
+        putc(c, f1);
+    }
+    fclose(f1);
+
+    f1 = fopen("input.txt", "r");
+    f2 = fopen("identifier.txt", "w");
+    f3 = fopen("specialchar.txt", "w");
+    f4 = fopen("operators.txt", "w");
+
+    while ((c = getc(f1)) != EOF) {
+        if (isdigit(c)) {
+            tokenvalue = c - '0';
+            c = getc(f1);
+            while (isdigit(c)) {
+                tokenvalue = tokenvalue * 10 + (c - '0');
+                c = getc(f1);
+            }
+            num[i++] = tokenvalue;
+            ungetc(c, f1);
+        } else if (isalpha(c)) {
+            putc(c, f2);
+            c = getc(f1);
+            while (isdigit(c) || isalpha(c) || c == '_' || c == '$') {
+                putc(c, f2);
+                c = getc(f1);
+            }
+            putc(' ', f2);
+            ungetc(c, f1);
+        } else if (c == '+' || c == '-' || c == '*' || c == '<' || c == '>' ||
+                   c == '/' || c == '&' || c == '%' || c == '^' || c == '=') {
+            putc(c, f4);
+        } else {
+            putc(c, f3);
+        }
+    }
+
+    fclose(f4);
+    fclose(f2);
+    fclose(f3);
+    fclose(f1);
+
+    printf("\nThe constants are: ");
+    for (j = 0; j < i; j++) {
+        printf("%d ", num[j]);
+    }
+    printf("\n");
+
+    f2 = fopen("identifier.txt", "r");
+    printf("The keywords and identifiers are:");
+    k = 0;
+    while ((c = getc(f2)) != EOF) {
+        if (c != ' ') {
+            str[k++] = c;
+        } else {
+            str[k] = '\0';
+            keyword(str);
+            k = 0;
+        }
+    }
+    fclose(f2);
+
+    f3 = fopen("specialchar.txt", "r");
+    printf("\nSpecial characters are: ");
+    while ((c = getc(f3)) != EOF) {
+        printf("%c ", c);
+    }
+    fclose(f3);
+
+    f4 = fopen("operators.txt", "r");
+    printf("\nOperators are: ");
+    while ((c = getc(f4)) != EOF) {
+        printf("%c ", c);
+    }
+    printf("\n");
+    fclose(f4);
+
+    return 0;
+}
+INPUT:
+
+before run the experiment
+at the top left click "create new file"
+then give name as "input.txt" inside the file type a+b+c+d,.:'
+
+create another file "identifier.txt" type  a b c d
+
+create another file "specialchar.txt" type ,.;'
+
+create another file "operator.txt" type +++
+
+then run the program
+input: a+b+c+d+..,'
